@@ -1,0 +1,89 @@
+---
+title: "Practical Machine Learning Course Project"
+author: "MsRai"
+date: "January 30, 2016"
+output: html_document
+---
+
+##Overview
+Fitness tracker devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it.
+
+This project is about using data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to predict the manner in which they did the exercise.
+
+##Set up the environment
+```{r}
+library(caret)
+library(randomForest)
+```
+
+##Examine the data set
+```{r}
+training<-read.csv(file="pml-training.csv",head=TRUE,sep=",")
+testing<-read.csv(file="pml-testing.csv",head=TRUE,sep=",")
+dim(training)
+dim(testing)
+```
+
+Training data set consists of 19622 observations and 160 variables.
+Testing data set consists of 20 observations and 160 variables.
+
+##Remove missing values
+```{r, cache = T}
+training <- training[, colSums(is.na(training)) == 0]
+testing <- testing[, colSums(is.na(testing)) == 0]
+```
+
+```{r, cache = T}
+classe <- training$classe
+trainRemove <- grepl("^X|timestamp|window", names(training))
+training <- training[, !trainRemove]
+newtrain <- training[, sapply(training, is.numeric)]
+newtrain$classe <- classe
+testRemove <- grepl("^X|timestamp|window", names(testing))
+testing <- testing[, !testRemove]
+newtest <- testing[, sapply(testing, is.numeric)]
+```
+
+##Examine new data
+```{r}
+dim(newtrain)
+dim(newtest)
+```
+New training and testing data set consists of 53 variables.
+
+##Using 60% for training and 40% for Cross Validation
+```{r, cache = T}
+set.seed(2015)
+inTrain <- createDataPartition(newtrain$classe, p=0.60, list=F)
+trainData <- newtrain[inTrain, ]
+testData <- newtrain[-inTrain, ]
+```
+
+##Model fitting using Random Forest method
+```{r, cache = T}
+mycontrol <- trainControl(method="cv", 4)
+modelfit <- train(classe ~ ., data=trainData, method="rf", trControl=mycontrol)
+modelfit
+```
+
+##Evaluate model performance 
+```{r, cache = T}
+prediction <- predict(modelfit, testData)
+confusionMatrix(testData$classe, prediction)
+```
+Model Accuracy is 99.04%
+
+##Display final Model
+```{r}
+varImp(modelfit)
+modelfit$finalModel
+```
+The estimated error rate is less than 1%.
+
+## Prediction assignment data
+
+```{r, cache = T}
+result <- predict(modelfit, newtest[, -length(names(newtest))])
+result
+```
+
